@@ -38,6 +38,8 @@ void setup() {
 void loop() {
   int colorSwitchState = digitalRead(COLOR_SWITCH);
   int powerSwitchState = digitalRead(POWER_SWITCH);
+  int pressureValue = analogRead(A0);
+  Serial.println(pressureValue);
 
   // power switch
   if (powerSwitchState == LOW && lastPowerSwitch == HIGH) {
