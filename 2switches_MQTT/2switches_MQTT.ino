@@ -24,7 +24,7 @@ const int mqtt_port       = 1884;
 int colorIndex = 0;
 int lastColorSwitch = HIGH;
 int lastPowerSwitch = HIGH;
-bool powerState = true;  // true = 开灯, false = 关灯
+bool powerState = true;  // true = turn the lights on , false = turn the lights off
 
 // define the RGB array
 const byte colors[][3] = {
@@ -108,7 +108,7 @@ void loop() {
 
   // Power control
   if (powerSwitchState == LOW && lastPowerSwitch == HIGH) {
-    powerState = !powerState; // change the swithc state
+    powerState = !powerState; // change the switch state
     Serial.print("Power toggled: ");
     Serial.println(powerState ? "ON" : "OFF");
 
