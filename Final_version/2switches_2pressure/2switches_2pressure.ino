@@ -112,7 +112,7 @@ void loop() {
   int colorSwitchState = digitalRead(COLOR_SWITCH);
   int powerSwitchState = digitalRead(POWER_SWITCH);
 
-  // Power control - Handle Power Switch toggle
+  // Switch 1 - Power control 
   if (powerSwitchState == LOW && lastPowerSwitch == HIGH) {
     powerState = !powerState;  // toggle ON/OFF
     Serial.print("Power toggled: ");
@@ -121,12 +121,11 @@ void loop() {
     if (!powerState) {
       // Turn OFF all LEDs and publish immediately
       send_all_off();
-      mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
       Serial.println("All lights OFF – published to MQTT.");
     } else {
-      // Turn ON and restore the current lighting mode (with MQTT send inside)
+      // Turn ON and restore the current lighting mode
       applyMode();  // this version includes internal MQTT publish
-      Serial.print("Power ON – restored mode ");
+      Serial.print("Power ON");
       Serial.println(modeIndex);
     }
     delay(200);  // debounce
@@ -141,7 +140,7 @@ void loop() {
     delay(200);
   }
 
-  // Animation update - runs continuously in loop
+  // Animation update
   unsigned long now = millis();
   if (powerState && (now - lastAnimationUpdate >= ANIMATION_INTERVAL)) {
     lastAnimationUpdate = now;
@@ -198,7 +197,7 @@ void applyMode() {
     return;
   }
 
-  // Sunrise Mode - initialize
+  // Sunrise Mode initialization
   if (modeIndex == 3) {
     sunriseStep = 0;  // reset step
     byte r = 0;
@@ -210,7 +209,7 @@ void applyMode() {
     return;
   }
 
-  // Party Mode - initialize
+  // Party Mode initialization
   if (modeIndex == 4) {
     Serial.println("Party mode activated");
     // First random colors
@@ -229,7 +228,7 @@ void applyMode() {
   mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
 }
 
-// Return the base RGB + recommended brightness for each static mode
+// Return the base RGB and recommended brightness for each static mode
 void getBaseColorForMode(int m, byte& r, byte& g, byte& b, byte& maxBrightness) {
   switch (m) {
     case 0:  // Reading
@@ -279,7 +278,7 @@ void pressure_control() {
   // Print current sensor readings
   Serial.print("Sensor1: ");
   Serial.print(p1);
-  Serial.print("   Sensor2: ");
+  Serial.print("  Sensor2: ");
   Serial.println(p2);
 
   // Check if both sensors are pressed
@@ -310,7 +309,7 @@ void pressure_control() {
   if (brightnessFactor > 1.0) brightnessFactor = 1.0;
   if (brightnessFactor < 0.0) brightnessFactor = 0.0;
 
-  // Static = 0,1,2,5. Animated = 3,4.
+  // The brightness of dynamic lights will not be influenced by pressure sensors.
   if (modeIndex == 0 || modeIndex == 1 || modeIndex == 2 || modeIndex == 5) {
     applyBrightnessScale(brightnessFactor);
     mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
@@ -318,7 +317,6 @@ void pressure_control() {
     Serial.println("Brightness squeeze ignored for animated mode.");
   }
 
-  // Print debug information
   Serial.print("Strength1: ");
   Serial.print(strength1);
   Serial.print("  Strength2: ");
@@ -329,9 +327,6 @@ void pressure_control() {
   Serial.println(brightnessFactor, 3);
 
   Serial.print("Scaled RGB = ");
-
-  // Send updated RGB values via MQTT
-  mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
 
   Serial.println("Pressure control: brightness updated\n");
 }
@@ -394,10 +389,9 @@ void fill_all(byte r, byte g, byte b) {
   }
 }
 
-// Update animated modes function
 void updateAnimatedModes() {
   if (modeIndex == 3) {
-    // Sunrise Mode - continuous looping gradient
+    // Sunrise Mode
     sunriseStep = (sunriseStep + 5) % 256;
     byte r = sunriseStep;
     byte g = (byte)(sunriseStep * 0.6);
@@ -405,7 +399,7 @@ void updateAnimatedModes() {
     fill_all(r, g, b);
     mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
   } else if (modeIndex == 4) {
-    // Party Mode - continuous random flashing
+    // Party Mode
     for (int i = 0; i < num_leds; i++) {
       RGBpayload[i * 3 + 0] = (byte)random(50, 256);
       RGBpayload[i * 3 + 1] = (byte)random(50, 256);
