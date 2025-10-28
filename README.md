@@ -9,6 +9,7 @@ This product is designed to develop a more **aesthetically pleasing** and **inte
 ## Working Principle
 
 This prototype operates by receiving input data from **switches** and **pressure sensors**, which are transmitted to the **Arduino MKR WiFi 1010** through data lines.  
+
 The Arduino processes these signals to determine user actions — such as turning lights on/off, adjusting brightness, or switching lighting modes — and then sends corresponding commands via **MQTT** to control the **Vespera** lighting system remotely.  
 
 This setup enables real-time, interactive control between physical input components and the digital lighting interface.
