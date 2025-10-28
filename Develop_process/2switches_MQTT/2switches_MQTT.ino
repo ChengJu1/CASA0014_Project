@@ -9,8 +9,8 @@
 #include <utility/wifi_drv.h>   // library to drive to RGB LED on the MKR1010
 
 
-#define SECRET_MQTTUSER "student"
-#define SECRET_MQTTPASS "ce2021-mqtt-forget-whale"
+#define SECRET_MQTTUSER "Your MQTT Username"
+#define SECRET_MQTTPASS "Your MQTT Password"
 #define COLOR_SWITCH  7     // SS-5GL Color changing switch
 #define POWER_SWITCH  8     // power control switch
 

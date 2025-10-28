@@ -9,12 +9,12 @@
 #include <utility/wifi_drv.h>  // library to drive to RGB LED on the MKR1010
 
 
-#define SECRET_MQTTUSER "student"
-#define SECRET_MQTTPASS "ce2021-mqtt-forget-whale"
+#define SECRET_MQTTUSER "Your MQTT Username"
+#define SECRET_MQTTPASS "Your MQTT Password"
 #define COLOR_SWITCH 7  // SS-5GL Color changing switch
 #define POWER_SWITCH 8  // power control switch
 #define PRESSURE_1 A1   // two pressure sensors
-#define PRESSURE_2 A2   
+#define PRESSURE_2 A2
 
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
@@ -22,21 +22,27 @@ const char* mqtt_username = SECRET_MQTTUSER;
 const char* mqtt_password = SECRET_MQTTPASS;
 const char* mqtt_server = "mqtt.cetools.org";
 const int mqtt_port = 1884;
+const int NUM_MODES = 6;
+const unsigned long ANIMATION_INTERVAL = 100;  // The animation update interval
+
 
 int colorIndex = 0;
 int lastColorSwitch = HIGH;
 int lastPowerSwitch = HIGH;
 bool powerState = true;  // true = turn the lights on , false = turn the lights off
-// define the RGB array
-const byte colors[][3] = {
-  { 255, 0, 0 },    // red
-  { 0, 255, 0 },    // green
-  { 0, 0, 255 },    // blue
-  { 255, 255, 0 },  // yellow
-  { 255, 0, 255 },  // pink
-  { 0, 255, 255 }   // cyan
-};
-const int numColors = sizeof(colors) / sizeof(colors[0]);
+unsigned long lastAnimationUpdate = 0;
+int sunriseStep = 0;
+/*********************************************************
+ * Lighting Scene Presets (6 home scenarios)
+ * 0 = Reading Mode       – bright cool white
+ * 1 = Relax Mode         – warm amber
+ * 2 = Movie Mode         – dim blue
+ * 3 = Sunrise Mode       – gradual warm-to-white fade
+ * 4 = Party Mode         – fast random colours
+ * 5 = Night Light Mode   – very dim warm orange
+ *********************************************************/
+int modeIndex = 0;
+
 
 // create wifi object and mqtt object
 WiFiClient wifiClient;
@@ -106,39 +112,46 @@ void loop() {
   int colorSwitchState = digitalRead(COLOR_SWITCH);
   int powerSwitchState = digitalRead(POWER_SWITCH);
 
-  // Power control
+  // Power control - Handle Power Switch toggle
   if (powerSwitchState == LOW && lastPowerSwitch == HIGH) {
-    powerState = !powerState;  // change the switch state
+    powerState = !powerState;  // toggle ON/OFF
     Serial.print("Power toggled: ");
     Serial.println(powerState ? "ON" : "OFF");
 
-    if (!powerState) {  // turn off
+    if (!powerState) {
+      // Turn OFF all LEDs and publish immediately
       send_all_off();
-    } else {
-      byte r = colors[colorIndex][0];
-      byte g = colors[colorIndex][1];
-      byte b = colors[colorIndex][2];
-      fill_all(r, g, b);
       mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+      Serial.println("All lights OFF – published to MQTT.");
+    } else {
+      // Turn ON and restore the current lighting mode (with MQTT send inside)
+      applyMode();  // this version includes internal MQTT publish
+      Serial.print("Power ON – restored mode ");
+      Serial.println(modeIndex);
     }
-
-    delay(200);  
+    delay(200);  // debounce
   }
 
-  // Change color
+  // Switch 2: cycle lighting scene mode
   if (colorSwitchState == LOW && lastColorSwitch == HIGH && powerState) {
-    colorIndex = (colorIndex + 1) % numColors;
-    byte r = colors[colorIndex][0];
-    byte g = colors[colorIndex][1];
-    byte b = colors[colorIndex][2];
-    fill_all(r, g, b);
-    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
-
-    Serial.print("Color changed to index: ");
-    Serial.println(colorIndex);
+    modeIndex = (modeIndex + 1) % NUM_MODES;
+    Serial.print("Lighting mode changed to index: ");
+    Serial.println(modeIndex);
+    applyMode();
+    delay(200);
   }
+
+  // Animation update - runs continuously in loop
+  unsigned long now = millis();
+  if (powerState && (now - lastAnimationUpdate >= ANIMATION_INTERVAL)) {
+    lastAnimationUpdate = now;
+    updateAnimatedModes();
+  }
+
   pressure_control();
-  delay(1000);
+  lastPowerSwitch = powerSwitchState;
+  lastColorSwitch = colorSwitchState;
+  delay(50);
 }
 
 // Function to update the R, G, B values of a single LED pixel
@@ -160,9 +173,101 @@ void send_RGB_to_pixel(int r, int g, int b, int pixel) {
   }
 }
 
+void applyBrightnessScale(float factor) {
+  if (!powerState) return;
+  if (factor < 0.0) factor = 0.0;
+  if (factor > 1.0) factor = 1.0;
+
+  byte baseR, baseG, baseB, maxBr;
+  getBaseColorForMode(modeIndex, baseR, baseG, baseB, maxBr);
+
+  float rF = baseR * factor;
+  float gF = baseG * factor;
+  float bF = baseB * factor;
+
+  byte r = (rF > 255) ? 255 : (byte)rF;
+  byte g = (gF > 255) ? 255 : (byte)gF;
+  byte b = (bF > 255) ? 255 : (byte)bF;
+
+  fill_all(r, g, b);
+}
+
+void applyMode() {
+  if (!powerState) {
+    send_all_off();
+    return;
+  }
+
+  // Sunrise Mode - initialize
+  if (modeIndex == 3) {
+    sunriseStep = 0;  // reset step
+    byte r = 0;
+    byte g = 0;
+    byte b = 0;
+    fill_all(r, g, b);
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+    Serial.println("Sunrise mode activated ");
+    return;
+  }
+
+  // Party Mode - initialize
+  if (modeIndex == 4) {
+    Serial.println("Party mode activated");
+    // First random colors
+    for (int i = 0; i < num_leds; i++) {
+      RGBpayload[i * 3 + 0] = (byte)random(50, 256);
+      RGBpayload[i * 3 + 1] = (byte)random(50, 256);
+      RGBpayload[i * 3 + 2] = (byte)random(50, 256);
+    }
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+    return;
+  }
+  // Static modes: Reading, Relax, Movie, Night Light
+  byte r, g, b, maxBr;
+  getBaseColorForMode(modeIndex, r, g, b, maxBr);
+  fill_all(r, g, b);
+  mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+}
+
+// Return the base RGB + recommended brightness for each static mode
+void getBaseColorForMode(int m, byte& r, byte& g, byte& b, byte& maxBrightness) {
+  switch (m) {
+    case 0:  // Reading
+      r = 255;
+      g = 255;
+      b = 200;
+      maxBrightness = 220;
+      break;
+    case 1:  // Relax
+      r = 255;
+      g = 150;
+      b = 80;
+      maxBrightness = 150;
+      break;
+    case 2:  // Movie
+      r = 60;
+      g = 80;
+      b = 255;
+      maxBrightness = 60;
+      break;
+    case 5:  // Night Light
+      r = 255;
+      g = 120;
+      b = 50;
+      maxBrightness = 30;
+      break;
+    default:  // fallback neutral
+      r = 255;
+      g = 255;
+      b = 255;
+      maxBrightness = 180;
+      break;
+  }
+}
+
 void pressure_control() {
   // Cooldown time in milliseconds
-  const unsigned long COOLDOWN_MS = 500;
+  const unsigned long COOLDOWN_MS = 1200;
 
   // Static variable keeps last trigger time
   static unsigned long lastTriggerTime = 0;
@@ -205,14 +310,13 @@ void pressure_control() {
   if (brightnessFactor > 1.0) brightnessFactor = 1.0;
   if (brightnessFactor < 0.0) brightnessFactor = 0.0;
 
-  // Scale RGB color by brightness factor
-  float rFloat = colors[colorIndex][0] * brightnessFactor;
-  float gFloat = colors[colorIndex][1] * brightnessFactor;
-  float bFloat = colors[colorIndex][2] * brightnessFactor;
-
-  byte r = (rFloat > 255) ? 255 : (byte)rFloat;
-  byte g = (gFloat > 255) ? 255 : (byte)gFloat;
-  byte b = (bFloat > 255) ? 255 : (byte)bFloat;
+  // Static = 0,1,2,5. Animated = 3,4.
+  if (modeIndex == 0 || modeIndex == 1 || modeIndex == 2 || modeIndex == 5) {
+    applyBrightnessScale(brightnessFactor);
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+  } else {
+    Serial.println("Brightness squeeze ignored for animated mode.");
+  }
 
   // Print debug information
   Serial.print("Strength1: ");
@@ -225,14 +329,8 @@ void pressure_control() {
   Serial.println(brightnessFactor, 3);
 
   Serial.print("Scaled RGB = ");
-  Serial.print(r);
-  Serial.print(", ");
-  Serial.print(g);
-  Serial.print(", ");
-  Serial.println(b);
 
   // Send updated RGB values via MQTT
-  fill_all(r, g, b);
   mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
 
   Serial.println("Pressure control: brightness updated\n");
@@ -286,11 +384,33 @@ void printMacAddress(byte mac[]) {
   }
   Serial.println();
 }
+
 // fill vespera with full color
 void fill_all(byte r, byte g, byte b) {
   for (int i = 0; i < num_leds; i++) {
     RGBpayload[i * 3 + 0] = r;
     RGBpayload[i * 3 + 1] = g;
     RGBpayload[i * 3 + 2] = b;
+  }
+}
+
+// Update animated modes function
+void updateAnimatedModes() {
+  if (modeIndex == 3) {
+    // Sunrise Mode - continuous looping gradient
+    sunriseStep = (sunriseStep + 5) % 256;
+    byte r = sunriseStep;
+    byte g = (byte)(sunriseStep * 0.6);
+    byte b = (byte)(sunriseStep * 0.3);
+    fill_all(r, g, b);
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+  } else if (modeIndex == 4) {
+    // Party Mode - continuous random flashing
+    for (int i = 0; i < num_leds; i++) {
+      RGBpayload[i * 3 + 0] = (byte)random(50, 256);
+      RGBpayload[i * 3 + 1] = (byte)random(50, 256);
+      RGBpayload[i * 3 + 2] = (byte)random(50, 256);
+    }
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
   }
 }
