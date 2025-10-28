@@ -6,7 +6,32 @@ This product is designed to develop a more **aesthetically pleasing** and **inte
 
 ---
 
-## 📁 Project Structure
+## Working Principle
+
+This prototype operates by receiving input data from **switches** and **pressure sensors**, which are transmitted to the **Arduino MKR WiFi 1010** through data lines.  
+The Arduino processes these signals to determine user actions — such as turning lights on/off, adjusting brightness, or switching lighting modes — and then sends corresponding commands via **MQTT** to control the **Vespera** lighting system remotely.  
+
+This setup enables real-time, interactive control between physical input components and the digital lighting interface.
+
+---
+
+## Hardware List 
+
+- **Arduino MKR WIFI 1010**  
+- **2 switches** (SS-5GL)  
+- **2 Pressure sensors** (Youmile FSR402 Thin film)  
+
+---
+
+## Dependencies 
+
+- **Arduino IDE 2.3.2 or higher**  
+- **WiFiNINA v1.8.14 or higher**  
+- **PubSubClient v2.8 or higher**  
+- **SPI** (built-in library)  
+
+
+## Prototype Structure
 ```
 CASA0014_Project/
 │
@@ -31,6 +56,8 @@ CASA0014_Project/
 
 ## Control Method 
 
+---
+
 The system consists of **two switches** and **two pressure sensors**:
 
 - **One switch** serves as the **main power control** — pressing it will turn off the lights immediately, regardless of the current lighting mode.
@@ -47,19 +74,10 @@ The pressure sensors detect the **strength of the press** — the harder the pre
 
 ---
 
-## Hardware List 
+## Future Development
 
-- **Arduino MKR WIFI 1010**  
-- **2 switches** (SS-5GL)  
-- **2 Pressure sensors** (Youmile FSR402 Thin film)  
-
----
-
-## Dependencies 
-
-- **Arduino IDE 2.3.2 or higher**  
-- **WiFiNINA v1.8.14 or higher**  
-- **PubSubClient v2.8 or higher**  
-- **SPI** (built-in library)  
+In future iterations, the prototype may adopt a **more universal connection interface** to support a wider range of lighting systems.  
+The **enclosure design** will also be refined to improve **aesthetic quality** and **user experience**, making it more suitable for various home environments.  
+Additionally, the **pressure sensors** could be upgraded to **more advanced, accurate, and user-friendly versions**, further enhancing interaction precision and comfort.
 
 ---
