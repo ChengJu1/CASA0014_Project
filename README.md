@@ -6,6 +6,22 @@ This product is designed to develop a more **aesthetically pleasing** and **inte
 
 ---
 
+## Project Structure
+
+The project directory is organized to clearly separate development stages, design documentation, and the final prototype:
+
+CASA0014_Project/
+│
+├── Develop_process/      → Contains earlier versions and debugging code used during system development.
+│
+├── Documents/            → Includes circuit diagrams, design sketches, and initial concept documentation.
+│
+├── Final_version/        → Contains the final working Arduino code (main `.ino` file for MKR WiFi 1010).
+│
+├── img/                  → Prototype and final product images used for documentation and demonstration.
+│
+└── README.md             → Main project documentation (this file).
+
 ## Control Method 
 
 The system consists of **two switches** and **two pressure sensors**:
