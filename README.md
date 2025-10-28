@@ -30,6 +30,7 @@ This setup enables real-time, interactive control between physical input compone
 - **PubSubClient v2.8 or higher**  
 - **SPI** (built-in library)  
 
+---
 
 ## Prototype Structure
 ```
