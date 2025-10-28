@@ -68,7 +68,7 @@ void setup() {
   Serial.begin(115200);
   //while (!Serial); // Wait for serial port to connect (useful for debugging)
   Serial.println("Vespera");
-
+  analogReadResolution(12);
 
   // print your MAC address:
   byte mac[6];
@@ -283,18 +283,18 @@ void pressure_control() {
   Serial.println(p2);
 
   // Check if both sensors are pressed
-  bool bothPressed = (p1 < 900) && (p2 < 900);
+  bool bothPressed = (p1 < 3800) && (p2 < 3800);
 
   // Skip if not pressed or light is off
   if (!(bothPressed && powerState)) {
-    Serial.println("⚠️  Waiting for both sensors to be pressed...");
+    Serial.println("Waiting for both sensors to be pressed...");
     return;
   }
 
   // Check cooldown to avoid repeated triggering
   unsigned long now = millis();
   if (now - lastTriggerTime < COOLDOWN_MS) {
-    Serial.println("⏳ Cooldown active, skipping update...");
+    Serial.println("Cooldown active, skipping update...");
     return;
   }
 
@@ -302,11 +302,11 @@ void pressure_control() {
   lastTriggerTime = now;
 
   // Calculate brightness factor from pressure strength
-  int strength1 = 1023 - p1;
-  int strength2 = 1023 - p2;
+  int strength1 = 4095 - p1;
+  int strength2 = 4095 - p2;
   int strengthAvg = (strength1 + strength2) / 2;
 
-  float brightnessFactor = strengthAvg / 1023.0;
+  float brightnessFactor = strengthAvg / 4095.0;
   if (brightnessFactor > 1.0) brightnessFactor = 1.0;
   if (brightnessFactor < 0.0) brightnessFactor = 0.0;
 
